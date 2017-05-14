@@ -59,7 +59,7 @@ class CorePlugin(Plugin):
         self.global_config = None
         
         with open('config.yaml', 'r') as f:
-            self.global_config = f
+            self.global_config = load(f)
 
     def our_add_plugin(self, cls, *args, **kwargs):
         if getattr(cls, 'global_plugin', False):
