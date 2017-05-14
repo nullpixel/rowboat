@@ -28,6 +28,8 @@ from rowboat.models.message import Message
 from rowboat.models.notification import Notification
 from rowboat.plugins.modlog import Actions
 
+from yaml import load
+
 PY_CODE_BLOCK = u'```py\n{}\n```'
 
 BOT_INFO = '''
@@ -36,7 +38,6 @@ Rowboat is a moderation and utilitarian Bot built for large Discord servers.
 
 GREEN_TICK_EMOJI = 'green_tick:305231298799206401'
 RED_TICK_EMOJI = 'red_tick:305231335512080385'
-
 
 class CorePlugin(Plugin):
     def load(self, ctx):
@@ -54,6 +55,11 @@ class CorePlugin(Plugin):
             self.spawn(self.wait_for_plugin_changes)
 
         self.spawn(self.wait_for_actions)
+        
+        self.global_config = None
+        
+        with open('config.yaml', 'r') as f:
+            self.global_config = f
 
     def our_add_plugin(self, cls, *args, **kwargs):
         if getattr(cls, 'global_plugin', False):
@@ -188,7 +194,7 @@ class CorePlugin(Plugin):
         embed.color = 0x779ecb
         yield embed
         self.bot.client.api.channels_messages_create(
-            290924692057882635 if ENV == 'prod' else 301869081714491393,
+        self.global_config['control_messages']['PRODUCTION'] if ENV == 'prod' else self.global_config['control_messages']['DEVELOPMENT'],
             '',
             embed=embed
         )

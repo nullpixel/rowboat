@@ -3,8 +3,27 @@ token: ''
 manhole_enable: true
 manhole_bind: 127.0.0.1:7171
 
+DSN: # Get this from here https://docs.sentry.io/quickstart/
+
+SECRET_KEY: # Generate a strong key used for oauth
+
 state:
   sync_guild_members: false
+
+control_messages:
+  # ID of channels where the control messages should send to
+  PRODUCTION: 290924692057882635
+  DEVELOPMENT: 301869081714491393
+
+web:
+  DOMAIN: 'https://rowboat.party' # Domain for your instance. Leave out the trailing slash.
+  discord:
+    CLIENT_ID: # Your client ID from discordapp.com/developers
+    CLIENT_SECRET: # Your client secret from discordapp.com/developers
+    API_BASE_URL: 'https://discordapp.com/api'
+    TOKEN_URL: 'https://discordapp.com/api/oauth2/token'
+    AUTH_URL: 'https://discordapp.com/oauth2/authorize'
+    REDIRECT_URI: # Your apps callback URL for auth. This is yourdomain/auth/discord/callback
 
 bot:
   commands_enabled: false
