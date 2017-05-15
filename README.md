@@ -13,9 +13,11 @@ Probablly not. Rowboat has enough moving pieces that running a local version is 
 Rowboat depends on a lot of third party tools. The example configuration file outlines all things you will need, but these.
 
 * Install redis, and start it on the default port
-* Install postgresql 9.6 or higher, and run this SQL: ```sql
+* Install postgresql 9.6 or higher, and run this SQL: 
+```sql
 CREATE USER rowboat;
-CREATE DATABASE rowboat WITH owner rowboat;```
+CREATE DATABASE rowboat WITH owner rowboat;
+```
 
 To grant yourself admin, you need to update the column in the `rowboat` database, then run `redis-cli`, `SELECT 11`, and then `sadd global_admins <your id>`. 
 
