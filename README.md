@@ -9,10 +9,13 @@ Rowboat is a private Discord bot focused on being a highly powerful and configur
 Probablly not. Rowboat has enough moving pieces that running a local version is complicated. The main purpose of having the source released is to allow others to understand and audit the functionality. The code is by no means meant to be easy to setup or bootstrap, and I don't plan on supporting folks trying to run locally. That said, feel free to run a local version of Rowboat for your server (but not a public version please).
 
 ### Notes to run locally:
+
 Rowboat depends on a lot of third party tools. The example configuration file outlines all things you will need, but these.
 
 * Install redis, and start it on the default port
-* Install postgresql, and make two databases, `rowboat`, and `rowboat_stats`. Give the user `rowboat` access to these.
+* Install postgresql 9.6 or higher, and run this SQL: ```sql
+CREATE USER rowboat;
+CREATE DATABASE rowboat WITH owner rowboat;```
 
 To grant yourself admin, you need to update the column in the `rowboat` database, then run `redis-cli`, `SELECT 11`, and then `sadd global_admins <your id>`. 
 

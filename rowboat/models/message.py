@@ -7,6 +7,7 @@ from peewee import (
     BigIntegerField, ForeignKeyField, TextField, DateTimeField,
     BooleanField, UUIDField
 )
+from yaml import load
 from datetime import datetime, timedelta
 from playhouse.postgres_ext import BinaryJSONField, ArrayField
 from disco.types.base import UNSET
@@ -14,8 +15,6 @@ from disco.types.base import UNSET
 from rowboat.util import default_json
 from rowboat.models.user import User
 from rowboat.sql import BaseModel
-
-from yaml import load
 
 EMOJI_RE = re.compile(r'<:.+:([0-9]+)>')
 
@@ -199,8 +198,8 @@ class MessageArchive(BaseModel):
 
     @property
     def url(self):
-	with open('config.yaml', 'r') as f:
-		config = load(f)
+        with open('config.yaml', 'r') as f:
+	    config = load(f)
 			
         return '{}/archive/{}.txt'.format(config['web']['DOMAIN'], self.archive_id)
 

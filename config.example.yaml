@@ -3,14 +3,14 @@ token: ''
 manhole_enable: true
 manhole_bind: 127.0.0.1:7171
 
-DSN: # Get this from here https://docs.sentry.io/quickstart/
+DSN: '' # Get this from here (optional) https://docs.sentry.io/quickstart/
 
-SECRET_KEY: # Generate a strong key used for oauth
+SECRET_KEY: '' # Generate a strong key used for oauth
 
 state:
   sync_guild_members: false
 
-control_messages:
+control_channels:
   # ID of channels where the control messages should send to
   PRODUCTION: 290924692057882635
   DEVELOPMENT: 301869081714491393

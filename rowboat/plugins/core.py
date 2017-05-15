@@ -194,7 +194,7 @@ class CorePlugin(Plugin):
         embed.color = 0x779ecb
         yield embed
         self.bot.client.api.channels_messages_create(
-        self.global_config['control_messages']['PRODUCTION'] if ENV == 'prod' else self.global_config['control_messages']['DEVELOPMENT'],
+        self.global_config['control_channels']['PRODUCTION'] if ENV == 'prod' else self.global_config['control_channels']['DEVELOPMENT'],
             '',
             embed=embed
         )
