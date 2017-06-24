@@ -5,6 +5,7 @@ import logging
 from peewee import (
     BigIntegerField, CharField, TextField, BooleanField, DateTimeField, CompositeKey, BlobField
 )
+from holster.enum import Enum
 from datetime import datetime
 from playhouse.postgres_ext import BinaryJSONField, ArrayField
 
@@ -17,6 +18,12 @@ log = logging.getLogger(__name__)
 
 @BaseModel.register
 class Guild(BaseModel):
+    WhitelistFlags = Enum(
+        'MUSIC',
+        'MODLOG_CUSTOM_FORMAT',
+        bitmask=False
+    )
+
     guild_id = BigIntegerField(primary_key=True)
     owner_id = BigIntegerField(null=True)
     name = TextField(null=True)
@@ -34,6 +41,13 @@ class Guild(BaseModel):
     whitelist = BinaryJSONField(default=[])
 
     added_at = DateTimeField(default=datetime.utcnow)
+
+    # SQL = '''
+    #     CREATE OR REPLACE FUNCTION shard (int, bigint)
+    #     RETURNS bigint AS $$
+    #       SELECT ($2 >> 22) % $1
+    #     $$ LANGUAGE SQL;
+    # '''
 
     class Meta:
         db_table = 'guilds'
@@ -53,6 +67,9 @@ class Guild(BaseModel):
             region=guild.region,
             config={'web': {str(guild.owner_id): 'admin'}},
             config_raw='')
+
+    def is_whitelisted(self, flag):
+        return int(flag) in self.whitelist
 
     def update_config(self, actor_id, raw):
         from rowboat.types.guild import GuildConfig
@@ -243,3 +260,47 @@ class GuildMemberBackup(BaseModel):
             mute=member.mute,
             deaf=member.deaf,
         )
+
+
+@BaseModel.register
+class GuildVoiceSession(BaseModel):
+    session_id = TextField()
+    user_id = BigIntegerField()
+    guild_id = BigIntegerField()
+    channel_id = BigIntegerField()
+
+    started_at = DateTimeField()
+    ended_at = DateTimeField(default=None, null=True)
+
+    class Meta:
+        db_table = 'guild_voice_sessions'
+
+        indexes = (
+            # Used for conflicts
+            (('session_id', 'user_id', 'guild_id', 'channel_id', 'started_at', 'ended_at', ), True),
+
+            (('started_at', 'ended_at', ), False),
+        )
+
+    @classmethod
+    def create_or_update(cls, before, after):
+        # If we have a previous voice state, we need to close it out
+        if before and before.channel_id:
+            GuildVoiceSession.update(
+                ended_at=datetime.utcnow()
+            ).where(
+                (GuildVoiceSession.user_id == after.user_id) &
+                (GuildVoiceSession.session_id == after.session_id) &
+                (GuildVoiceSession.guild_id == after.guild_id) &
+                (GuildVoiceSession.channel_id == before.channel_id) &
+                (GuildVoiceSession.ended_at >> None)
+            ).execute()
+
+        if after.channel_id:
+            GuildVoiceSession.insert(
+                session_id=after.session_id,
+                guild_id=after.guild_id,
+                channel_id=after.channel_id,
+                user_id=after.user_id,
+                started_at=datetime.utcnow(),
+            ).returning(GuildVoiceSession.id).on_conflict('DO NOTHING').execute()

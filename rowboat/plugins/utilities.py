@@ -7,7 +7,6 @@ import operator
 from six import BytesIO
 from PIL import Image
 from peewee import fn
-from pyquery import PyQuery
 from gevent.pool import Pool
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -21,6 +20,7 @@ from rowboat.plugins import RowboatPlugin as Plugin, CommandFail
 from rowboat.util.timing import Eventual
 from rowboat.util.input import parse_duration
 from rowboat.types.plugin import PluginConfig
+from rowboat.models.guild import GuildVoiceSession
 from rowboat.models.user import User, Infraction
 from rowboat.models.message import Message, Reminder
 from rowboat.util.images import get_dominant_colors_user, get_dominant_colors_guild
@@ -364,16 +364,55 @@ class UtilitiesPlugin(Plugin):
                 ))
 
         try:
-            msg = Message.select().where(
-                (Message.author_id == user.id)
+            newest_msg = Message.select(Message.timestamp).where(
+                (Message.author_id == user.id) &
+                (Message.guild_id == event.guild.id)
             ).order_by(Message.timestamp.desc()).get()
+
+            oldest_msg = Message.select(Message.timestamp).where(
+                (Message.author_id == user.id) &
+                (Message.guild_id == event.guild.id)
+            ).order_by(Message.timestamp.asc()).get()
             content.append(u'\n **\u276F Activity**')
             content.append('Last Message: {} ago ({})'.format(
-                humanize.naturaldelta(datetime.utcnow() - msg.timestamp),
-                msg.timestamp.isoformat(),
+                humanize.naturaldelta(datetime.utcnow() - newest_msg.timestamp),
+                newest_msg.timestamp.isoformat(),
+            ))
+            content.append('First Message: {} ago ({})'.format(
+                humanize.naturaldelta(datetime.utcnow() - oldest_msg.timestamp),
+                oldest_msg.timestamp.isoformat(),
             ))
         except Message.DoesNotExist:
             pass
+
+        infractions = list(Infraction.select(
+            Infraction.guild_id,
+            fn.COUNT('*')
+        ).where(
+            (Infraction.user_id == user.id)
+        ).group_by(Infraction.guild_id).tuples())
+
+        if infractions:
+            total = sum(i[1] for i in infractions)
+            content.append(u'\n**\u276F Infractions**')
+            content.append('Total Infractions: {}'.format(total))
+            content.append('Unique Servers: {}'.format(len(infractions)))
+
+        voice = list(GuildVoiceSession.select(
+            GuildVoiceSession.user_id,
+            fn.COUNT('*'),
+            fn.SUM(GuildVoiceSession.ended_at - GuildVoiceSession.started_at)
+        ).where(
+            (GuildVoiceSession.user_id == user.id) &
+            (~(GuildVoiceSession.ended_at >> None))
+        ).group_by(GuildVoiceSession.user_id).tuples())
+
+        if voice:
+            content.append(u'\n**\u276F Voice**')
+            content.append(u'Sessions: {}'.format(voice[0][1]))
+            content.append(u'Time: {}'.format(humanize.naturaldelta(
+                voice[0][2]
+            )))
 
         embed = MessageEmbed()
 
@@ -390,19 +429,6 @@ class UtilitiesPlugin(Plugin):
 
         embed.set_thumbnail(url=avatar)
 
-        infractions = list(Infraction.select(
-            Infraction.guild_id,
-            fn.COUNT('*')
-        ).where(
-            (Infraction.user_id == user.id)
-        ).group_by(Infraction.guild_id).tuples())
-
-        if infractions:
-            total = sum(i[1] for i in infractions)
-            content.append(u'\n**\u276F Infractions**')
-            content.append('Total Infractions: {}'.format(total))
-            content.append('Unique Servers: {}'.format(len(infractions)))
-
         embed.description = '\n'.join(content)
         embed.color = get_dominant_colors_user(user, avatar)
         event.msg.reply('', embed=embed)
@@ -418,6 +444,7 @@ class UtilitiesPlugin(Plugin):
             if not channel:
                 self.log.warning('Not triggering reminder, channel %s was not found!',
                     message.channel_id)
+                reminder.delete_instance()
                 continue
 
             channel.send_message(u'<@{}> you asked me at {} ({} ago) to remind you about: {}'.format(

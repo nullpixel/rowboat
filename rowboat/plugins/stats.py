@@ -2,6 +2,7 @@ from datadog import initialize, statsd
 from collections import defaultdict
 from disco.types.user import Status
 
+from rowboat import ENV
 from rowboat.plugins import BasePlugin as Plugin
 
 
@@ -14,7 +15,10 @@ class StatsPlugin(Plugin):
 
     def load(self, ctx):
         super(StatsPlugin, self).load(ctx)
-        initialize(statsd_host='localhost', statsd_port=8125)
+        if ENV == 'docker':
+            initialize(statsd_host='statsd', statsd_port=8125)
+        else:
+            initialize(statsd_host='localhost', statsd_port=8125)
 
     @Plugin.listen('')
     def on_gateway_event(self, event):
@@ -49,12 +53,6 @@ class StatsPlugin(Plugin):
         statsd.gauge('disco.state.channels', len(self.state.channels))
         statsd.gauge('disco.state.users', len(self.state.users))
         statsd.gauge('disco.state.voice_states', len(self.state.voice_states))
-
-    @Plugin.command('wow')
-    def on_wow(self, event):
-        for _ in range(1000):
-            statsd.increment('wow', 1)
-        event.msg.reply('oklol')
 
     @Plugin.listen('MessageCreate')
     def on_message_create(self, event):

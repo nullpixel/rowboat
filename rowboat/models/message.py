@@ -2,6 +2,7 @@ import re
 import six
 import json
 import uuid
+import traceback
 
 from peewee import (
     BigIntegerField, ForeignKeyField, TextField, DateTimeField,
@@ -12,6 +13,7 @@ from datetime import datetime, timedelta
 from playhouse.postgres_ext import BinaryJSONField, ArrayField
 from disco.types.base import UNSET
 
+from rowboat import REV
 from rowboat.util import default_json
 from rowboat.models.user import User
 from rowboat.sql import BaseModel
@@ -51,14 +53,13 @@ class Message(BaseModel):
             # These indexes are mostly just general use
             (('channel_id', ), False),
             (('guild_id', ), False),
-            (('author_id', ), False),
             (('deleted', ), False),
 
             # Timestamp is regularly sorted on
             (('timestamp', ), False),
 
             # Some queries want to get history in a guild or channel
-            (('author_id', 'guild_id', 'channel_id'), False),
+            (('author', 'guild_id', 'channel_id'), False),
         )
 
     @classmethod
@@ -199,9 +200,10 @@ class MessageArchive(BaseModel):
     @property
     def url(self):
         with open('config.yaml', 'r') as f:
-	    config = load(f)
+	        config = load(f)
 			
         return '{}/archive/{}.txt'.format(config['web']['DOMAIN'], self.archive_id)
+
 
     def encode(self, fmt='txt'):
         from rowboat.models.user import User
@@ -394,3 +396,33 @@ class Reminder(BaseModel):
                 Message.author_id == user_id
             ))
         ).execute()
+
+
+@BaseModel.register
+class Command(BaseModel):
+    message_id = BigIntegerField(primary_key=True)
+
+    plugin = TextField()
+    command = TextField()
+    version = TextField()
+    success = BooleanField()
+    traceback = TextField(null=True)
+
+    class Meta:
+        db_table = 'commands'
+
+        indexes = (
+            (('success', ), False),
+            (('plugin', 'command'), False),
+        )
+
+    @classmethod
+    def track(cls, event, command, exception=False):
+        cls.create(
+            message_id=event.message.id,
+            plugin=command.plugin.name,
+            command=command.name,
+            version=REV,
+            success=not exception,
+            traceback=traceback.format_exc() if exception else None,
+        )
